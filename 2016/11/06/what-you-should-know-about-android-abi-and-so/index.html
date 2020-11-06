@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="一般情况下，我们不需要关心so。但是当APP使用的第三方SDK中包含了so文件，或者自己需要使用NDK开发某些功能，就有必要去好好了解下so的一些知识。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="谈谈Android的so">
+<meta property="og:url" content="http://example.com/2016/11/06/what-you-should-know-about-android-abi-and-so/index.html">
+<meta property="og:site_name" content="冯俊">
+<meta property="og:description" content="一般情况下，我们不需要关心so。但是当APP使用的第三方SDK中包含了so文件，或者自己需要使用NDK开发某些功能，就有必要去好好了解下so的一些知识。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://ww2.sinaimg.cn/large/006tNc79gw1fam13n6z7fj30dw097q54.jpg">
+<meta property="og:image" content="http://ww3.sinaimg.cn/large/72f96cbagw1f9bfd1lkw2j21gq18g42s.jpg">
+<meta property="og:image" content="http://ww3.sinaimg.cn/large/72f96cbagw1f9bfq62g6tj21gy0h6dhy.jpg">
+<meta property="og:image" content="http://ww2.sinaimg.cn/large/65e4f1e6gw1f9g5kj885ij218g0nrq9k.jpg">
+<meta property="article:published_time" content="2016-11-06T13:29:47.000Z">
+<meta property="article:modified_time" content="2017-03-06T09:10:28.000Z">
+<meta property="article:author" content="冯俊">
+<meta property="article:tag" content="android">
+<meta property="article:tag" content="so">
+<meta property="article:tag" content="abi">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://ww2.sinaimg.cn/large/006tNc79gw1fam13n6z7fj30dw097q54.jpg">
+
+<link rel="canonical" href="http://example.com/2016/11/06/what-you-should-know-about-android-abi-and-so/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>谈谈Android的so | 冯俊</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">冯俊</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2016/11/06/what-you-should-know-about-android-abi-and-so/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="冯俊">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="冯俊">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          谈谈Android的so
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2016-11-06 21:29:47" itemprop="dateCreated datePublished" datetime="2016-11-06T21:29:47+08:00">2016-11-06</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2017-03-06 17:10:28" itemprop="dateModified" datetime="2017-03-06T17:10:28+08:00">2017-03-06</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/android/" itemprop="url" rel="index"><span itemprop="name">android</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p><img src="http://ww2.sinaimg.cn/large/006tNc79gw1fam13n6z7fj30dw097q54.jpg"></p>
+<p>一般情况下，我们不需要关心so。但是当APP使用的第三方SDK中包含了so文件，或者自己需要使用NDK开发某些功能，就有必要去好好了解下so的一些知识。</p>
+<a id="more"></a>
+
+<blockquote>
+<p>出处： <em><a target="_blank" rel="noopener" href="http://allenfeng.com/">Allen’s Zone</a></em><br>作者： <em>Allen Feng</em></p>
+</blockquote>
+<h2 id="什么是ABI和so"><a href="#什么是ABI和so" class="headerlink" title="什么是ABI和so"></a>什么是ABI和so</h2><p>早期的Android设备只支持ARMv5的CPU架构，随着Android系统的快速发展，搭载Android的硬件平台也早已多样化了，又加入了ARMv7，x86，MIPS，ARMv8，MIPS64和x86_64。<br>每一种CPU架构，都定义了一种ABI（Application Binary Interface，应用二进制接口），ABI定义了其所对应的CPU架构能够执行的二进制文件（如.so文件）的格式规范，决定了二进制文件如何与系统进行交互。<br><img src="http://ww3.sinaimg.cn/large/72f96cbagw1f9bfd1lkw2j21gq18g42s.jpg" alt="ABI及支持的指令集"><br>每一种ABI的详细介绍可以参见官方的介绍<a target="_blank" rel="noopener" href="https://developer.android.com/ndk/guides/abis.html">ABI Management</a>。</p>
+<p>so（<em>shared object</em>，共享库）是机器可以直接运行的二进制代码，是Android上的动态链接库，类似于Windows上的dll。每一个Android应用所支持的ABI是由其APK提供的.so文件决定的，这些so文件被打包在apk文件的lib/<abi>目录下，其中<em>abi</em>可以是上面表格中的一个或者多个。<br>例如，解压一个apk文件后，在lib目录下可以看到如下文件：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">lib</span><br><span class="line">|</span><br><span class="line">├── armeabi</span><br><span class="line">│   └── libmath.so</span><br><span class="line">├── armeabi-v7a</span><br><span class="line">│   └── libmath.so</span><br><span class="line">├── mips</span><br><span class="line">│   └── libmath.so</span><br><span class="line">└── x86</span><br><span class="line">    └── libmath.so</span><br></pre></td></tr></table></figure>
+<p>说明该应用所支持的ABI为armeabi, armeabi-v7a, mips, 和x86。</p>
+<p>注：可以使用<code>aapt</code>命令快速查看apk支持的abi</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">~ aapt dump badging baidutieba.apk | grep abi</span><br><span class="line">native-code: <span class="string">&#x27;armeabi&#x27;</span> <span class="string">&#x27;mips&#x27;</span> <span class="string">&#x27;x86&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="为什么使用so"><a href="#为什么使用so" class="headerlink" title="为什么使用so"></a>为什么使用so</h2><ul>
+<li>so机制让开发者最大化利用已有的C和C++代码，达到重用的效果，利用软件世界积累了几十年的优秀代码；</li>
+<li>so是二进制，没有解释编译的开消，用so实现的功能比纯java实现的功能要快；</li>
+<li>so内存分配不受Dalivik/ART的单个应用限制，减少OOM；</li>
+<li>相对于java代码，二进制代码的反编译难度更大，一些核心代码可以考虑放在so中。</li>
+</ul>
+<h2 id="为指定的ABI生成so"><a href="#为指定的ABI生成so" class="headerlink" title="为指定的ABI生成so"></a>为指定的ABI生成so</h2><p>默认情况下，NDK只会为<em>armeabi</em>生成.so文件，若需要生成支持其他ABI的.so文件，可以在<em>Application.mk</em>文件中指定<code>APP_ABI</code>参数：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">APP_ABI :&#x3D; armeabi-v7a</span><br></pre></td></tr></table></figure>
+
+<p><code>APP_ABI</code>参数可以被指定多个值以支持多个ABI：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">APP_ABI :&#x3D; armeabi armeabi-v7a x86</span><br></pre></td></tr></table></figure>
+
+<p>当然，你也可以使用<code>all</code>来生成支持所有ABI的so：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">APP_ABI :&#x3D; all</span><br></pre></td></tr></table></figure>
+
+<p><img src="http://ww3.sinaimg.cn/large/72f96cbagw1f9bfq62g6tj21gy0h6dhy.jpg" alt="各种ABI对应的值"></p>
+<h2 id="查看Android系统的ABI支持"><a href="#查看Android系统的ABI支持" class="headerlink" title="查看Android系统的ABI支持"></a>查看Android系统的ABI支持</h2><p>Android可以在运行期间确定当前系统所支持的ABI，这是由系统编译时的具体参数指定的：</p>
+<ul>
+<li><code>primary ABI</code>（主ABI）：对应当前系统中使用的机器码类型</li>
+<li><code>secondary ABI</code>（副ABI）：表示当前系统支持的其他ABI类型</li>
+</ul>
+<p>许多手机支持不止一个ABI，比如，一个基于ARMv7的设备会将armeabi-v7a定义为<em>primary ABI</em>，armeabi作为<em>secondary ABI</em>，意味着这台机器同时支持armeabi-v7a和armeabi。<br>许多基于x86的设备也可以运行armeabi-v7a和armeabi的so，对于这些机器，<em>primary ABI</em>是x86，<em>secondary ABI</em>则是armeabi-v7a.</p>
+<p>但是，为了能得到更好的性能表现，我们应该尽可能的直接提供primary ABI所对应的so文件。比如，我们可以为x86手机直接提供x86的so文件，而不是仅提供arm的so让系统通过<em>houdini</em>去动态转换arm指令，避免转换过程中的性能损耗。</p>
+<p>查看Android系统支持的ABI有以下两种方法：</p>
+<h3 id="使用adb命令"><a href="#使用adb命令" class="headerlink" title="使用adb命令"></a>使用adb命令</h3><p><code>/system/build.prop</code>中指定了支持的ABI类型，在adb中，可使用如下命令查看：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">shell@NX529J:/ $ getprop | grep abilist</span><br><span class="line">[ro.product.cpu.abi]: [arm64-v8a]</span><br><span class="line">[ro.product.cpu.abilist32]: [armeabi-v7a,armeabi]</span><br><span class="line">[ro.product.cpu.abilist64]: [arm64-v8a]</span><br><span class="line">[ro.product.cpu.abilist]: [arm64-v8a,armeabi-v7a,armeabi]</span><br></pre></td></tr></table></figure>
+
+<h3 id="使用API获取"><a href="#使用API获取" class="headerlink" title="使用API获取"></a>使用API获取</h3><p>使用<a target="_blank" rel="noopener" href="https://developer.android.com/reference/android/os/Build.html#SUPPORTED_ABIS">Build.SUPPORTED_ABIS</a>可以获取当前设备支持的ABI列表：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> android.os.Build;</span><br><span class="line">String supportedAbis = Build.SUPPORTED_ABIS;</span><br></pre></td></tr></table></figure>
+
+<h2 id="x86手机对arm的支持"><a href="#x86手机对arm的支持" class="headerlink" title="x86手机对arm的支持"></a>x86手机对arm的支持</h2><p>值得注意的是原本x86架构的CPU是不支持运行arm架构的native代码的，但Intel和Google合作在x86机子的系统内核层之上加入了一个名为<em>houdini</em>的Binary Translator（二进制转换中间层），这个中间层会在运行期间动态的读取arm指令并将之转换为x86指令去执行。<br><img src="http://ww2.sinaimg.cn/large/65e4f1e6gw1f9g5kj885ij218g0nrq9k.jpg" alt="Binary Translator"><br>所以能看到很多没有提供x86对应so的应用（如新浪微博）也能够运行在x86手机上。</p>
+<h2 id="apk安装过程中对so的选择"><a href="#apk安装过程中对so的选择" class="headerlink" title="apk安装过程中对so的选择"></a>apk安装过程中对so的选择</h2><p>在Android上安装应用程序时，Package Manager会扫描整个apk文件，寻找符合下面文件路径格式的动态连接库：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">lib&#x2F;&lt;primary-abi&gt;&#x2F;lib&lt;name&gt;.so</span><br></pre></td></tr></table></figure>
+<p>在这里，<code>primary-abi</code>是上面表中的abi的值，<code>name</code>对应的是我们在<em>Android.mk</em>中定义的<em>LOCAL_MODULE</em>的值，</p>
+<p>如果在apk内并没有找到适合当前机器<em>primary-abi</em>的so，Package Manager会尝试寻找适合<em>secondary-abi</em>的so文件：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">lib&#x2F;&lt;secondary-abi&gt;&#x2F;lib&lt;name&gt;.so</span><br></pre></td></tr></table></figure>
+
+<p>即安装应用时，系统会根据当前CPU架构选择最优ABI适配，如果找到了合适的so文件，包管理器会将该ABI文件夹下所有so库全部拷贝至应用的data目录下：<code>data/data/&lt;package_name&gt;/lib/</code></p>
+<p>注意：apk安装过程对so选择<em>是基于整个ABI文件夹的，而非以单个so文件为粒度</em>，也就是说把lib/armeabi 、lib/armeabi-v7a、lib/x86等等文件夹的其中一个文件夹内所有.so复制到应用的data目录下。</p>
+<p>如果我们在代码中调用了某个so的功能，而最终拷贝的ABI文件夹下并没有提供这个文件，apk的安装过程中并不会报错，但是运行时会遇到<code>java.lang.UnsatisfiedLinkError</code>。</p>
+<h2 id="so的加载"><a href="#so的加载" class="headerlink" title="so的加载"></a>so的加载</h2><p>对于so的加载，Android在<code>System</code>类中提供了两种方法：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">  * See &#123;<span class="doctag">@link</span> Runtime#loadLibrary&#125;.</span></span><br><span class="line"><span class="comment">  */</span></span><br><span class="line"> <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">loadLibrary</span><span class="params">(String libName)</span> </span>&#123;</span><br><span class="line">     Runtime.getRuntime().loadLibrary(libName, VMStack.getCallingClassLoader());</span><br><span class="line"> &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">  * See &#123;<span class="doctag">@link</span> Runtime#load&#125;.</span></span><br><span class="line"><span class="comment">  */</span></span><br><span class="line"> <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">load</span><span class="params">(String pathName)</span> </span>&#123;</span><br><span class="line">     Runtime.getRuntime().load(pathName, VMStack.getCallingClassLoader());</span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="System-loadLibrary"><a href="#System-loadLibrary" class="headerlink" title="System.loadLibrary"></a>System.loadLibrary</h3><p>这是我们最常用的一个方法，<code>System.loadLibrary</code>只需要传入so在<em>Android.mk</em>中定义的<em>LOCAL_MODULE</em>的值即可，<br>系统会调用<code>System.mapLibraryName</code>把这个libName转化成对应平台的so的全称并去尝试寻找这个so加载。<br>比如我们的so文件全名为<em>libmath.so</em>，加载该动态库只需要传入<code>math</code>即可：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">System.loadLibrary(<span class="string">&quot;math&quot;</span>);</span><br></pre></td></tr></table></figure>
+
+<h3 id="System-load"><a href="#System-load" class="headerlink" title="System.load"></a>System.load</h3><p>对于<code>System.load</code>方法，官方是这样介绍的：</p>
+<blockquote>
+<p>Loads a code file with the specified filename from the local file system as a dynamic library.<br>The filename argument must be a complete path name.</p>
+</blockquote>
+<p>所以它为动态加载非apk打包期间内置的so文件提供了可能，也就是说可以使用这个方法来指定我们要加载的so文件的路径来动态的加载so文件。<br>比如我们在打包期间并不打包so文件，而是在应用运行时将当前设备适用的so文件从服务器上下载下来，放在<code>/data/data/&lt;package-name&gt;/mydir</code>下，然后在使用so时调用：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">System.load(<span class="string">&quot;/data/data/&lt;package-name&gt;/mydir/libmath.so&quot;</span>);</span><br></pre></td></tr></table></figure>
+<p>即可成功加载这个so，开始调用本地方法了。</p>
+<blockquote>
+<p>其实loadLibrary和load最终都会调用nativeLoad(name, loader, ldLibraryPath)方法，只是因为loadLibrary的参数传入的仅仅是so的文件名，所以，loadLibrary需要首先找到这个文件的路径，然后加载这个so文件。<br>而load传入的参数是一个文件路径，所以它不需要去寻找这个文件路径，而是直接通过这个路径来加载so文件。</p>
+</blockquote>
+<p>但是当我们把需要加载的so文件放在SdCard中，会发生什么呢？把上面so的路径改成<code>/mnt/sdcard/libmath.so</code>，再尝试加载时，会得到如下错误：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">java.lang.UnsatisfiedLinkError: dlopen failed: couldn<span class="string">&#x27;t map &quot;/mnt/sdcard/libmath.so&quot; segment 1: Permission denied</span></span><br></pre></td></tr></table></figure>
+<p>这是因为SD卡等外部存储路径是一种可拆卸的（mounted）不可执行（noexec）的储存媒介，不能直接用来作为可执行文件的运行目录，使用前应该把可执行文件复制到APP内部存储下再运行。所以使用<code>System.load</code>加载so时要注意把so拷贝至<code>/data/data/&lt;package-name&gt;/</code>下。</p>
+<h2 id="通过精简so来减小包大小"><a href="#通过精简so来减小包大小" class="headerlink" title="通过精简so来减小包大小"></a>通过精简so来减小包大小</h2><p>现在的apk动辄几十M或者更大，apk包大小的精简成为了开发过程中的重要一环。通过上面的介绍，我们知道x86、x86_64、armeabi-v7a、arm64-v8a设备都支持armeabi架构的so，因此，通过移除不必要的so来减小包大小是一个不错的选择。</p>
+<h3 id="按照ABI分别单独打包APK"><a href="#按照ABI分别单独打包APK" class="headerlink" title="按照ABI分别单独打包APK"></a>按照ABI分别单独打包APK</h3><p>我们可以选择在Google Play上传指定ABI版本的APK，生成不同ABI版本的APK可以在build.gradle中进行如下配置：</p>
+<figure class="highlight groovy"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">android &#123;</span><br><span class="line">    <span class="comment">// Some other configuration here...</span></span><br><span class="line"></span><br><span class="line">    splits &#123;</span><br><span class="line">        abi &#123;</span><br><span class="line">            enable <span class="literal">true</span></span><br><span class="line">            reset()</span><br><span class="line">            include <span class="string">&#x27;x86&#x27;</span>, <span class="string">&#x27;armeabi&#x27;</span>, <span class="string">&#x27;armeabi-v7a&#x27;</span>, <span class="string">&#x27;mips&#x27;</span> <span class="comment">//select ABIs to build APKs for</span></span><br><span class="line">            universalApk <span class="literal">false</span> <span class="comment">// generate an additional APK that contains all the ABIs</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="只提供armabi的so"><a href="#只提供armabi的so" class="headerlink" title="只提供armabi的so"></a>只提供<code>armabi</code>的so</h3><p>上面的方法需要应用市场提供用户设备CPU类型更识别的支持，在国内并不是一个十分适用的方案。常用的处理方式是利用gradle中的abiFilters配置。<br>首先配置修改主工程<code>build.gradle</code>下的<code>abiFilters</code>：</p>
+<figure class="highlight groovy"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">android &#123;</span><br><span class="line">    <span class="comment">// Some other configuration here...</span></span><br><span class="line"></span><br><span class="line">    defaultConfig &#123;</span><br><span class="line">        ndk &#123;</span><br><span class="line">            abiFilters <span class="string">&#x27;armeabi&#x27;</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>abiFilters后面的ABI类型即为要打包进apk的ABI类型，除此以外都不打包进apk里。<br>然后在项目的根目录下的<code>gradle.properties</code>（没有的话新建一个）中加入下面这行：</p>
+<figure class="highlight groovy"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">android.useDeprecatedNdk=<span class="literal">true</span></span><br></pre></td></tr></table></figure>
+<p>通过上面方法减少的apk体积是十分可观的，也是目前比较主流的处理方案。</p>
+<h3 id="进阶版方案"><a href="#进阶版方案" class="headerlink" title="进阶版方案"></a>进阶版方案</h3><p>如果进一步，会发现上面的方案并不完美。首先是性能问题：使用兼容模式去运行arm架构的so，会丢失专门为当前ABI优化过的性能；其次还有兼容性问题，虽然x86设备能兼容arm类型的函数库，但是并不意味着100%的兼容，某些情况下还是会发生crash，所以x86的arm兼容只是一个<em>折中方案</em>，为了最好的利用x86自身的性能和避免兼容性问题，我们最好的做法仍是专为<code>x86</code>提供对应的so。<br>针对这些问题，我们可以采用一个相对更好的方案：让所有so都来自于网路，应用下载服务器上的so库后，利用<code>System.load</code>方法动态加载当前设备对应的so.</p>
+<h2 id="需要注意的问题"><a href="#需要注意的问题" class="headerlink" title="需要注意的问题"></a>需要注意的问题</h2><h3 id="不要把so放错地方"><a href="#不要把so放错地方" class="headerlink" title="不要把so放错地方"></a>不要把so放错地方</h3><p>首先要注意的是不要把另一个ABI下的so文件放在另一个ABI文件夹下（每个ABI文件夹下的so文件名是相同的，有可能会搞错）。</p>
+<h3 id="尽可能为所有ABI提供so"><a href="#尽可能为所有ABI提供so" class="headerlink" title="尽可能为所有ABI提供so"></a>尽可能为所有ABI提供so</h3><p>理想状况下，应该尽可能为所有ABI都提供对应的so，这一点的好处我们已经在上面讨论过了：在可以发挥更好性能的同时，还能减少由于兼容带来的某些crash问题。当然，这一点要结合实际情况（如SDK提供的so不全、芯片市场占有率、apk包大小等）去考量，如果使用的so本身就很小，我们大可为尽可能多的ABI都提供so。<br>若是局限于包大小等因素，可以结合<em>通过精简so来减小包大小</em>一节中提供的第三个方案来调整so的使用策略。</p>
+<h3 id="所有ABI文件夹提供的so要保持一致"><a href="#所有ABI文件夹提供的so要保持一致" class="headerlink" title="所有ABI文件夹提供的so要保持一致"></a>所有ABI文件夹提供的so要保持一致</h3><p><em>这是一个十分容易出现的错误。</em><br>如果我们的应用选择了支持多个ABI，要十分注意：对于每个ABI下的so，但要么<em>全部支持，要么都不支持</em>。不应该混合着使用，而应该为每个ABI目录提供对应的.so文件。</p>
+<p>先举个例子，Bugtags的so支持所有的ABI：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">libs</span><br><span class="line">|</span><br><span class="line">├── arm64-v8a</span><br><span class="line">│   └── libBugtags.so</span><br><span class="line">├── armeabi</span><br><span class="line">│   └── libBugtags.so</span><br><span class="line">├── armeabi-v7a</span><br><span class="line">│   └── libBugtags.so</span><br><span class="line">├── mips</span><br><span class="line">│   └── libBugtags.so</span><br><span class="line">├── mips64</span><br><span class="line">│   └── libBugtags.so</span><br><span class="line">├── x86</span><br><span class="line">│   └── libBugtags.so</span><br><span class="line">└── x86_64</span><br><span class="line">    └── libBugtags.so</span><br></pre></td></tr></table></figure>
+
+<p>但不是所有开发者提供的so都支持所有ABI：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">lib</span><br><span class="line">|</span><br><span class="line">├── armeabi</span><br><span class="line">│   └── libImages.so</span><br><span class="line">└── armeabi-v7a</span><br><span class="line">    └── libImages.so</span><br></pre></td></tr></table></figure>
+
+<p>如果不做任何设置，最终打出来的apk的lib目录会是这样的：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">lib</span><br><span class="line">|</span><br><span class="line">├── arm64-v8a</span><br><span class="line">│   └── libBugtags.so</span><br><span class="line">├── armeabi</span><br><span class="line">│   ├── libBugtags.so</span><br><span class="line">│   └── libImages.so</span><br><span class="line">├── armeabi-v7a</span><br><span class="line">│   ├── libBugtags.so</span><br><span class="line">│   └── libImages.so</span><br><span class="line">├── mips</span><br><span class="line">│   └── libBugtags.so</span><br><span class="line">├── mips64</span><br><span class="line">│   └── libBugtags.so</span><br><span class="line">├── x86</span><br><span class="line">│   └── libBugtags.so</span><br><span class="line">└── x86_64</span><br><span class="line">    └── libBugtags.so</span><br></pre></td></tr></table></figure>
+
+<p>参考上面<em>apk安装过程中对so的选择</em>一节，假设当前设备是x86机器，包管理器会先去lib/x86下寻找，发现该文件夹是存在的，所以最终只有lib/x86下的so–即只有libBugtags.so会被安装。当尝试在运行期间加载<code>libImages.so</code>时，就会遇上下面常见的<em>UnsatisfiedLinkError</em>错误：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">E/xxx   (10674): java.lang.UnsatisfiedLinkError: dalvik.system.PathClassLoader[DexPathList[[zip file <span class="string">&quot;/data/app/xxx-2/base.apk&quot;</span>],nativeLibraryDirectories=[/data/app/xxx-2/lib/x86, /vendor/lib, /system/lib]]] couldn<span class="string">&#x27;t find &quot;libImages.so&quot;</span></span><br><span class="line"><span class="string">E/xxx   (10674):     at java.lang.Runtime.loadLibrary(Runtime.java:366)</span></span><br></pre></td></tr></table></figure>
+
+<p>所以，我们需要遵循这样的<em>准则</em>：</p>
+<ul>
+<li>对于so开发者：支持所有的平台，否则将会搞砸你的用户。</li>
+<li>对于so使用者：要么支持所有平台，要么都不支持。</li>
+</ul>
+<p>然而，因为种种原因（遗留so、芯片市场占有率、apk包大小等），并不是所有人都遵循这样的原则。</p>
+<p>一种可行的处理方案是：取你所有的so库所支持的ABI的交集，移除其他（可以通过上面介绍的<code>abiFilters</code>来实现）。<br>如上面的例子，最终生成的apk可以是:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">lib</span><br><span class="line">|</span><br><span class="line">├── armeabi</span><br><span class="line">│   ├── libBugtags.so</span><br><span class="line">│   └── libImages.so</span><br><span class="line">└── armeabi-v7a</span><br><span class="line">    ├── libBugtags.so</span><br><span class="line">    └── libImages.so</span><br></pre></td></tr></table></figure>
+
+    </div>
+
+    
+    
+    
+        
+
+  <div class="followme">
+    <p>欢迎关注我的其它发布渠道</p>
+
+    <div class="social-list">
+
+        <div class="social-item">
+          <a target="_blank" class="social-link" href="/images/wechat_channel.jpg">
+            <span class="icon">
+              <i class="fab fa-weixin"></i>
+            </span>
+
+            <span class="label">WeChat</span>
+          </a>
+        </div>
+    </div>
+  </div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/android/" rel="tag"># android</a>
+              <a href="/tags/so/" rel="tag"># so</a>
+              <a href="/tags/abi/" rel="tag"># abi</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2016/10/29/practice-on-react-native-for-android/" rel="prev" title="React Native for Android 接入实践">
+      <i class="fa fa-chevron-left"></i> React Native for Android 接入实践
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2016/11/17/principle-analysis-on-multidex/" rel="next" title="Android MultiDex实现原理解析">
+      Android MultiDex实现原理解析 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BB%80%E4%B9%88%E6%98%AFABI%E5%92%8Cso"><span class="nav-number">1.</span> <span class="nav-text">什么是ABI和so</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88%E4%BD%BF%E7%94%A8so"><span class="nav-number">2.</span> <span class="nav-text">为什么使用so</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%BA%E6%8C%87%E5%AE%9A%E7%9A%84ABI%E7%94%9F%E6%88%90so"><span class="nav-number">3.</span> <span class="nav-text">为指定的ABI生成so</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%9F%A5%E7%9C%8BAndroid%E7%B3%BB%E7%BB%9F%E7%9A%84ABI%E6%94%AF%E6%8C%81"><span class="nav-number">4.</span> <span class="nav-text">查看Android系统的ABI支持</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BD%BF%E7%94%A8adb%E5%91%BD%E4%BB%A4"><span class="nav-number">4.1.</span> <span class="nav-text">使用adb命令</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BD%BF%E7%94%A8API%E8%8E%B7%E5%8F%96"><span class="nav-number">4.2.</span> <span class="nav-text">使用API获取</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#x86%E6%89%8B%E6%9C%BA%E5%AF%B9arm%E7%9A%84%E6%94%AF%E6%8C%81"><span class="nav-number">5.</span> <span class="nav-text">x86手机对arm的支持</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#apk%E5%AE%89%E8%A3%85%E8%BF%87%E7%A8%8B%E4%B8%AD%E5%AF%B9so%E7%9A%84%E9%80%89%E6%8B%A9"><span class="nav-number">6.</span> <span class="nav-text">apk安装过程中对so的选择</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#so%E7%9A%84%E5%8A%A0%E8%BD%BD"><span class="nav-number">7.</span> <span class="nav-text">so的加载</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#System-loadLibrary"><span class="nav-number">7.1.</span> <span class="nav-text">System.loadLibrary</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#System-load"><span class="nav-number">7.2.</span> <span class="nav-text">System.load</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%80%9A%E8%BF%87%E7%B2%BE%E7%AE%80so%E6%9D%A5%E5%87%8F%E5%B0%8F%E5%8C%85%E5%A4%A7%E5%B0%8F"><span class="nav-number">8.</span> <span class="nav-text">通过精简so来减小包大小</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%8C%89%E7%85%A7ABI%E5%88%86%E5%88%AB%E5%8D%95%E7%8B%AC%E6%89%93%E5%8C%85APK"><span class="nav-number">8.1.</span> <span class="nav-text">按照ABI分别单独打包APK</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8F%AA%E6%8F%90%E4%BE%9Barmabi%E7%9A%84so"><span class="nav-number">8.2.</span> <span class="nav-text">只提供armabi的so</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%BF%9B%E9%98%B6%E7%89%88%E6%96%B9%E6%A1%88"><span class="nav-number">8.3.</span> <span class="nav-text">进阶版方案</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%9C%80%E8%A6%81%E6%B3%A8%E6%84%8F%E7%9A%84%E9%97%AE%E9%A2%98"><span class="nav-number">9.</span> <span class="nav-text">需要注意的问题</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%8D%E8%A6%81%E6%8A%8Aso%E6%94%BE%E9%94%99%E5%9C%B0%E6%96%B9"><span class="nav-number">9.1.</span> <span class="nav-text">不要把so放错地方</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%B0%BD%E5%8F%AF%E8%83%BD%E4%B8%BA%E6%89%80%E6%9C%89ABI%E6%8F%90%E4%BE%9Bso"><span class="nav-number">9.2.</span> <span class="nav-text">尽可能为所有ABI提供so</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%89%80%E6%9C%89ABI%E6%96%87%E4%BB%B6%E5%A4%B9%E6%8F%90%E4%BE%9B%E7%9A%84so%E8%A6%81%E4%BF%9D%E6%8C%81%E4%B8%80%E8%87%B4"><span class="nav-number">9.3.</span> <span class="nav-text">所有ABI文件夹提供的so要保持一致</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">冯俊</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">9</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-name">分类</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-name">标签</span>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yourname" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yourname" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i></a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yourname@gmail.com" title="E-Mail → mailto:yourname@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i></a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">冯俊</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

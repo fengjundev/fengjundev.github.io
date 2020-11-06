@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="我们都知道，RN开发完成后，不管是集成到app中一起发布还是热更新发布，都会涉及到js代码的打包。如果代码中引用了静态图片资源，还需要连同图片一起打包。除此以外，还要想办法保证我们所执行的js代码的安全性和完整性，基于这些需求，我们团队形成了一套RN打包签名的方案，本文主要对这套方案记录，以供参考。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Android React Native 打包与签名实践">
+<meta property="og:url" content="http://example.com/2016/10/29/android-react-native-packaging/index.html">
+<meta property="og:site_name" content="冯俊">
+<meta property="og:description" content="我们都知道，RN开发完成后，不管是集成到app中一起发布还是热更新发布，都会涉及到js代码的打包。如果代码中引用了静态图片资源，还需要连同图片一起打包。除此以外，还要想办法保证我们所执行的js代码的安全性和完整性，基于这些需求，我们团队形成了一套RN打包签名的方案，本文主要对这套方案记录，以供参考。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://ww3.sinaimg.cn/large/006tNbRwgw1f9ac5adg60j30dw09b0um.jpg">
+<meta property="og:image" content="http://ww1.sinaimg.cn/large/72f96cbajw1f994rs0nznj21kw13k7cb.jpg">
+<meta property="article:published_time" content="2016-10-29T06:18:17.000Z">
+<meta property="article:modified_time" content="2016-11-24T02:16:37.000Z">
+<meta property="article:author" content="冯俊">
+<meta property="article:tag" content="react native">
+<meta property="article:tag" content="android">
+<meta property="article:tag" content="打包">
+<meta property="article:tag" content="签名">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://ww3.sinaimg.cn/large/006tNbRwgw1f9ac5adg60j30dw09b0um.jpg">
+
+<link rel="canonical" href="http://example.com/2016/10/29/android-react-native-packaging/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Android React Native 打包与签名实践 | 冯俊</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">冯俊</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2016/10/29/android-react-native-packaging/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="冯俊">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="冯俊">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Android React Native 打包与签名实践
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2016-10-29 14:18:17" itemprop="dateCreated datePublished" datetime="2016-10-29T14:18:17+08:00">2016-10-29</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2016-11-24 10:16:37" itemprop="dateModified" datetime="2016-11-24T10:16:37+08:00">2016-11-24</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/android/" itemprop="url" rel="index"><span itemprop="name">android</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/android/react-native/" itemprop="url" rel="index"><span itemprop="name">react native</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p><img src="http://ww3.sinaimg.cn/large/006tNbRwgw1f9ac5adg60j30dw09b0um.jpg"></p>
+<p>我们都知道，RN开发完成后，不管是集成到app中一起发布还是热更新发布，都会涉及到js代码的打包。如果代码中引用了静态图片资源，还需要连同图片一起打包。除此以外，还要想办法保证我们所执行的js代码的安全性和完整性，基于这些需求，我们团队形成了一套RN打包签名的方案，本文主要对这套方案记录，以供参考。</p>
+<a id="more"></a>
+
+<blockquote>
+<p>出处： <em><a target="_blank" rel="noopener" href="http://allenfeng.com/">Allen’s Zone</a></em><br>作者： <em>Allen Feng</em></p>
+</blockquote>
+<h3 id="静态图片加载方式的选择"><a href="#静态图片加载方式的选择" class="headerlink" title="静态图片加载方式的选择"></a>静态图片加载方式的选择</h3><p>根据<a target="_blank" rel="noopener" href="https://facebook.github.io/react-native/docs/images.html">官方文档</a>，加载<strong>静态</strong>图片资源一共有两种方式。第一种是将图片放置在原生app的<code>res/drawable</code>目录中，然后在js代码中使用下面方式加载：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;Image source=&#123;&#123;<span class="attr">uri</span>: <span class="string">&#x27;app_icon&#x27;</span>&#125;&#125; style=&#123;&#123;<span class="attr">width</span>: <span class="number">40</span>, <span class="attr">height</span>: <span class="number">40</span>&#125;&#125; /&gt;</span><br></pre></td></tr></table></figure>
+
+<p>但是这样的方式并不优雅，不仅会增大宿主APP的体积，还会导致js层的实现与原生层耦合在一起，当热更新时无法做到图片的更新。</p>
+<p>第二种方式是采用相对路径的方式进行加载，例如，我们有以下的目录结构</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">src</span><br><span class="line">├── button.js</span><br><span class="line">└── img</span><br><span class="line">    ├── check.png</span><br><span class="line">    └── check_pressed.png</span><br></pre></td></tr></table></figure>
+
+<p>然后在<code>button.js</code>这样引用：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;Image source=&#123;<span class="built_in">require</span>(<span class="string">&#x27;./img/check.png&#x27;</span>)&#125; /&gt;</span><br></pre></td></tr></table></figure>
+
+<p>这样的方式就比较灵活，只要将js代码和使用到的图片打包在一起，就可以在热更新的时候做到业务代码和图片的同步更新。</p>
+<p>所以我们在项目中统一采用的第二种方案去加载静态图片。</p>
+<h3 id="对图片路径的定制"><a href="#对图片路径的定制" class="headerlink" title="对图片路径的定制"></a>对图片路径的定制</h3><p>我们希望打包时，整个RN包内部是下面的结构，将所有图片放置在<code>images</code>目录下，这样的目录结构比较清晰明了.</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">├── images</span><br><span class="line">│   ├── drawable-hdpi</span><br><span class="line">│   ├── drawable-mdpi</span><br><span class="line">│   ├── drawable-xhdpi</span><br><span class="line">│   ├── drawable-xxhdpi</span><br><span class="line">│   └── drawable-xxxhdpi</span><br><span class="line">└── index.android.bundle</span><br></pre></td></tr></table></figure>
+
+<p>但是这里有个问题，release版本中，RN采用<code>require</code>方式加载图片时，生成的路径是下面的形式：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;bundle当前路径&gt;/drawable-mdpi/foldername_imagename.png</span><br></pre></td></tr></table></figure>
+
+<p>根据上面打包的结构，需要定制成为以下的形式才能正确访问到图片：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;bundle当前路径&gt;/images/drawable-mdpi/foldername_imagename.png</span><br></pre></td></tr></table></figure>
+
+<p>所以就涉及到了对图片路径定制的需求，经过RN源码的探索，发现对于图片路径的解析是由<code>node_modules/react-native/Libraries/Image/resolveAssetSource.js</code>来完成的，解析生成图片路径主要代码如下：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * `source` is either a number (opaque type returned by require(&#x27;./foo.png&#x27;))</span></span><br><span class="line"><span class="comment"> * or an `ImageSource` like &#123; uri: &#x27;&lt;http location || file path&gt;&#x27; &#125;</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">resolveAssetSource</span>(<span class="params">source: any</span>): ?<span class="title">ResolvedAssetSource</span> </span>&#123;</span><br><span class="line">  <span class="keyword">if</span> (<span class="keyword">typeof</span> source === <span class="string">&#x27;object&#x27;</span>) &#123;</span><br><span class="line">    <span class="keyword">return</span> source;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">var</span> asset = AssetRegistry.getAssetByID(source);</span><br><span class="line">  <span class="keyword">if</span> (!asset) &#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">const</span> resolver = <span class="keyword">new</span> AssetSourceResolver(getDevServerURL(), getBundleSourcePath(), asset);</span><br><span class="line">  <span class="keyword">if</span> (_customSourceTransformer) &#123;</span><br><span class="line">    <span class="keyword">return</span> _customSourceTransformer(resolver);</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">return</span> resolver.defaultAsset();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">setCustomSourceTransformer</span>(<span class="params"></span></span></span><br><span class="line"><span class="function"><span class="params">  transformer: (resolver: AssetSourceResolver) =&gt; ResolvedAssetSource,</span></span></span><br><span class="line"><span class="function"><span class="params"></span>): <span class="title">void</span> </span>&#123;</span><br><span class="line">  _customSourceTransformer = transformer;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>可以看到，我们可以通过调用<code>setCustomSourceTransformer</code>来设置自己的<code>AssetSourceResolver</code>来完成自定义的路径解析生成器，加上需要的<code>images</code>这一部分路径即可。</p>
+<h3 id="Bundle打包和图片导出"><a href="#Bundle打包和图片导出" class="headerlink" title="Bundle打包和图片导出"></a>Bundle打包和图片导出</h3><p>主要是使用官方提供的<code>react-native bundle</code>命令实现这个过程，如</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">react-native bundle --entry-file index.android.js --bundle-output ./output/my.bundle --dev <span class="literal">false</span> --platform android --assets-dest ./output/images/</span><br></pre></td></tr></table></figure>
+
+<p>具体的参数可以通过<code>--help</code>查看说明，需要注意的是，<code>assets-dest</code>指定的就是js代码中引用到的图片资源的导出路径，如果不指定，将不会导出图片。</p>
+<p>命令执行完成后，<code>output</code>目录下：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">├── images</span><br><span class="line">│   ├── drawable-hdpi</span><br><span class="line">│   ├── drawable-mdpi</span><br><span class="line">│   ├── drawable-xhdpi</span><br><span class="line">│   ├── drawable-xxhdpi</span><br><span class="line">│   └── drawable-xxxhdpi</span><br><span class="line">└── index.android.bundle</span><br></pre></td></tr></table></figure>
+
+<h3 id="签名与打包"><a href="#签名与打包" class="headerlink" title="签名与打包"></a>签名与打包</h3><p>在完成了上面的操作后，我们只是得到了一个文件夹，里面包含了bundle文件和图片文件，如果涉及到中间人攻击，bundle文件可能会被篡改，安全无法得到保证，所以我们需要对这个文件夹下的文件进行加签处理。具体采用的是下面的签名方案：</p>
+<p><img src="http://ww1.sinaimg.cn/large/72f96cbajw1f994rs0nznj21kw13k7cb.jpg" alt="打包流程"></p>
+<p>（1）生成MANIFEST.MF文件：这是摘要文件。遍历build目录所有文件（entry），对非文件夹、非签名文件的文件，逐个使用SHA1生成摘要信息，再用Base64编码。并在摘要文件头部写入bundle的版本信息等。</p>
+<p>说明：如果有人改变了安装包中的文件，那么在安装校验的时候，改变后的文件摘要信息与MANIFEST.MF的校验信息不同，将无法安装。但是，如果攻击者重新生成了摘要文件，就可以通过验证，所以这只是一个非常简单的验证。需要结合（2）确保安全性。</p>
+<p>（2）生成CERT.SF文件：这是摘要文件的签名文件。对前一步生成的MANIFEST.MF，使用SHA1-RSA算法，用私钥进行签名。在安装时，在客户端使用公钥进行解密，解密之后MANIFEST.MF的内容进行比对，如果相符，则表明内容没有被异常修改。</p>
+<p>说明：在这一步，即使攻击者修改了内容，并生成了新的摘要文件，但是攻击者没有开发者的私钥，所以不能生成正确的签名文件（CERT.SF）。客户端在对安装包进行验证的时候，用公钥对不正确的签名文件进行解密，得到的结果和摘要文件（MANIFEST.MF）对应不起来，所以不能通过检验，不能成功安装文件。从而确保了安全性。</p>
+<p>完成上述流程后，将签名文件和bundle等文件一起压缩，就完成了整个打包的流程。</p>
+
+    </div>
+
+    
+    
+    
+        
+
+  <div class="followme">
+    <p>欢迎关注我的其它发布渠道</p>
+
+    <div class="social-list">
+
+        <div class="social-item">
+          <a target="_blank" class="social-link" href="/images/wechat_channel.jpg">
+            <span class="icon">
+              <i class="fab fa-weixin"></i>
+            </span>
+
+            <span class="label">WeChat</span>
+          </a>
+        </div>
+    </div>
+  </div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/react-native/" rel="tag"># react native</a>
+              <a href="/tags/android/" rel="tag"># android</a>
+              <a href="/tags/%E6%89%93%E5%8C%85/" rel="tag"># 打包</a>
+              <a href="/tags/%E7%AD%BE%E5%90%8D/" rel="tag"># 签名</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2015/12/01/practice-on-react-native-hot-update/" rel="prev" title="使用 React Native 实现app热部署的一次实践">
+      <i class="fa fa-chevron-left"></i> 使用 React Native 实现app热部署的一次实践
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2016/10/29/practice-on-react-native-for-android/" rel="next" title="React Native for Android 接入实践">
+      React Native for Android 接入实践 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%9D%99%E6%80%81%E5%9B%BE%E7%89%87%E5%8A%A0%E8%BD%BD%E6%96%B9%E5%BC%8F%E7%9A%84%E9%80%89%E6%8B%A9"><span class="nav-number">1.</span> <span class="nav-text">静态图片加载方式的选择</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AF%B9%E5%9B%BE%E7%89%87%E8%B7%AF%E5%BE%84%E7%9A%84%E5%AE%9A%E5%88%B6"><span class="nav-number">2.</span> <span class="nav-text">对图片路径的定制</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Bundle%E6%89%93%E5%8C%85%E5%92%8C%E5%9B%BE%E7%89%87%E5%AF%BC%E5%87%BA"><span class="nav-number">3.</span> <span class="nav-text">Bundle打包和图片导出</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AD%BE%E5%90%8D%E4%B8%8E%E6%89%93%E5%8C%85"><span class="nav-number">4.</span> <span class="nav-text">签名与打包</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">冯俊</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">9</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-name">分类</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-name">标签</span>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yourname" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yourname" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i></a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yourname@gmail.com" title="E-Mail → mailto:yourname@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i></a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">冯俊</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
